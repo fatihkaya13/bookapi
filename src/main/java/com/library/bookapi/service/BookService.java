@@ -83,11 +83,14 @@ public class BookService {
     // ─── Mapping helpers ─────────────────────────────────────────────────────
 
     BookResponse toResponse(Book book) {
-        // book.getAuthor() triggers a lazy load HERE if not already loaded.
-        // This is safe because we're inside a @Transactional method, so the
-        // Hibernate session is still open. Outside a transaction this would
-        // throw LazyInitializationException.
         Author author = book.getAuthor();
+
+        // Stream over the categories Set to collect just the names.
+        // book.getCategories() may trigger a lazy load — safe inside @Transactional.
+        List<String> categoryNames = book.getCategories().stream()
+                .map(cat -> cat.getName())
+                .sorted()
+                .toList();
 
         return BookResponse.builder()
                 .id(book.getId())
@@ -99,6 +102,7 @@ public class BookService {
                 .authorName(author != null
                         ? author.getFirstName() + " " + author.getLastName()
                         : null)
+                .categoryNames(categoryNames)
                 .build();
     }
 
