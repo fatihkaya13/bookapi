@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 @Service
 @RequiredArgsConstructor
@@ -85,12 +86,27 @@ public class BookService {
     BookResponse toResponse(Book book) {
         Author author = book.getAuthor();
 
-        // Stream over the categories Set to collect just the names.
-        // book.getCategories() may trigger a lazy load — safe inside @Transactional.
         List<String> categoryNames = book.getCategories().stream()
                 .map(cat -> cat.getName())
                 .sorted()
                 .toList();
+
+        // ─── Stream-computed review stats ────────────────────────────────────
+        //
+        // book.getReviews() triggers a lazy load (safe inside @Transactional).
+        //
+        // IntStream.average() returns OptionalDouble — which may be empty
+        // if the list is empty. We use orElse(null) via a ternary to avoid
+        // returning 0.0 for an unreviewed book (null is more accurate).
+        //
+        int reviewCount = book.getReviews().size();
+
+        // OptionalDouble wraps the result — empty if no reviews exist.
+        // We convert to Double (boxed) so the JSON shows null, not 0.0.
+        OptionalDouble avg = book.getReviews().stream()
+                .mapToInt(r -> r.getRating())
+                .average();
+        Double avgRating = avg.isPresent() ? avg.getAsDouble() : null;
 
         return BookResponse.builder()
                 .id(book.getId())
@@ -103,6 +119,8 @@ public class BookService {
                         ? author.getFirstName() + " " + author.getLastName()
                         : null)
                 .categoryNames(categoryNames)
+                .reviewCount(reviewCount)
+                .averageRating(avgRating)
                 .build();
     }
 
