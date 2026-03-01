@@ -7,6 +7,8 @@ import com.library.bookapi.entity.Author;
 import com.library.bookapi.entity.Book;
 import com.library.bookapi.repository.AuthorRepository;
 import com.library.bookapi.repository.BookRepository;
+import com.library.bookapi.validation.BookValidationContext;
+import com.library.bookapi.validation.BookValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,14 @@ public class BookService {
     private final BookRepository bookRepository;
     private final AuthorRepository authorRepository;
 
+    // ─── Chain of Responsibility ─────────────────────────────────────────────
+    //
+    // Spring auto-injects ALL @Component classes that implement BookValidator,
+    // ordered by their @Order annotation. Adding a new validator is zero-touch
+    // here — just create the @Component and it joins the chain automatically.
+    //
+    private final List<BookValidator> validators;
+
     public List<BookResponse> getAll() {
         return bookRepository.findAll().stream()
                 .map(this::toResponse)
@@ -32,20 +42,16 @@ public class BookService {
         return bookRepository.findById(id).map(this::toResponse);
     }
 
-    // @Transactional ensures the whole method runs inside one DB transaction.
-    // This matters because we might load an Author AND save a Book — both must
-    // succeed or both must roll back. It also keeps the Hibernate session open
-    // for the duration, so lazy-loaded fields are accessible within this method.
     @Transactional
     public BookResponse create(BookRequest request) {
-        if (request.getRating() != null) validateRating(request.getRating());
+        runValidationChain(toContext(request));
         Book book = toEntity(request);
         return toResponse(bookRepository.save(book));
     }
 
     @Transactional
     public Optional<BookResponse> update(Long id, BookRequest request) {
-        if (request.getRating() != null) validateRating(request.getRating());
+        runValidationChain(toContext(request));
         return bookRepository.findById(id).map(book -> {
             book.setTitle(request.getTitle());
             book.setIsbn(request.getIsbn());
@@ -62,7 +68,7 @@ public class BookService {
 
     @Transactional
     public Optional<BookResponse> partialUpdate(Long id, BookPatchRequest patch) {
-        if (patch.getRating() != null) validateRating(patch.getRating());
+        runValidationChain(toContext(patch));
         return bookRepository.findById(id).map(book -> {
             if (patch.getTitle() != null) book.setTitle(patch.getTitle());
             if (patch.getIsbn() != null) book.setIsbn(patch.getIsbn());
@@ -84,6 +90,43 @@ public class BookService {
         return true;
     }
 
+    // ─── Validation chain runner ──────────────────────────────────────────────
+    //
+    // Iterates through every validator in order. Each link in the chain
+    // inspects the context and either:
+    //   - skips (field is null → not provided in this request)
+    //   - passes (field is valid)
+    //   - throws IllegalArgumentException (field is invalid → chain stops)
+    //
+    private void runValidationChain(BookValidationContext context) {
+        validators.forEach(v -> v.validate(context));
+    }
+
+    // ─── Context builders ─────────────────────────────────────────────────────
+    //
+    // Convert DTOs to a validation context. This decouples validators from
+    // specific DTO classes — validators only know about BookValidationContext.
+    //
+    private BookValidationContext toContext(BookRequest request) {
+        return BookValidationContext.builder()
+                .title(request.getTitle())
+                .isbn(request.getIsbn())
+                .publishedYear(request.getPublishedYear())
+                .genre(request.getGenre())
+                .rating(request.getRating())
+                .build();
+    }
+
+    private BookValidationContext toContext(BookPatchRequest patch) {
+        return BookValidationContext.builder()
+                .title(patch.getTitle())
+                .isbn(patch.getIsbn())
+                .publishedYear(patch.getPublishedYear())
+                .genre(patch.getGenre())
+                .rating(patch.getRating())
+                .build();
+    }
+
     // ─── Mapping helpers ─────────────────────────────────────────────────────
 
     BookResponse toResponse(Book book) {
@@ -94,18 +137,8 @@ public class BookService {
                 .sorted()
                 .toList();
 
-        // ─── Stream-computed review stats ────────────────────────────────────
-        //
-        // book.getReviews() triggers a lazy load (safe inside @Transactional).
-        //
-        // IntStream.average() returns OptionalDouble — which may be empty
-        // if the list is empty. We use orElse(null) via a ternary to avoid
-        // returning 0.0 for an unreviewed book (null is more accurate).
-        //
         int reviewCount = book.getReviews().size();
 
-        // OptionalDouble wraps the result — empty if no reviews exist.
-        // We convert to Double (boxed) so the JSON shows null, not 0.0.
         OptionalDouble avg = book.getReviews().stream()
                 .mapToInt(r -> r.getRating())
                 .average();
@@ -140,18 +173,6 @@ public class BookService {
                 .build();
     }
 
-    // Validates that rating is null or a half/whole point between 1.0 and 5.0.
-    // Allowed: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5
-    // Rejected: 4.7, 0.5, 6, etc.
-    private void validateRating(Double rating) {
-        if (rating < 1.0 || rating > 5.0 || rating % 0.5 != 0) {
-            throw new IllegalArgumentException(
-                    "Rating must be between 1.0 and 5.0 in 0.5 increments (e.g., 1, 1.5, 2, ... 5). Got: " + rating);
-        }
-    }
-
-    // Looks up an Author by id, returns null if id is null.
-    // Using Optional.ofNullable + map is the idiomatic stream-style null-safe way.
     private Author resolveAuthor(Long authorId) {
         return Optional.ofNullable(authorId)
                 .flatMap(authorRepository::findById)
