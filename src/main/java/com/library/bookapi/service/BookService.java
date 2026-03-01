@@ -49,8 +49,8 @@ public class BookService {
             book.setIsbn(request.getIsbn());
             book.setPublishedYear(request.getPublishedYear());
             book.setGenre(request.getGenre());
+            book.setRating(request.getRating());
 
-            // Resolve the new author from the DB if an authorId was sent
             Author author = resolveAuthor(request.getAuthorId());
             book.setAuthor(author);
 
@@ -65,6 +65,7 @@ public class BookService {
             if (patch.getIsbn() != null) book.setIsbn(patch.getIsbn());
             if (patch.getPublishedYear() != null) book.setPublishedYear(patch.getPublishedYear());
             if (patch.getGenre() != null) book.setGenre(patch.getGenre());
+            if (patch.getRating() != null) book.setRating(patch.getRating());
 
             // Only update author if the patch includes an authorId key
             if (patch.getAuthorId() != null) {
@@ -114,6 +115,7 @@ public class BookService {
                 .isbn(book.getIsbn())
                 .publishedYear(book.getPublishedYear())
                 .genre(book.getGenre())
+                .rating(book.getRating())
                 .authorId(author != null ? author.getId() : null)
                 .authorName(author != null
                         ? author.getFirstName() + " " + author.getLastName()
@@ -131,6 +133,7 @@ public class BookService {
                 .isbn(request.getIsbn())
                 .publishedYear(request.getPublishedYear())
                 .genre(request.getGenre())
+                .rating(request.getRating())
                 .author(author)
                 .build();
     }
