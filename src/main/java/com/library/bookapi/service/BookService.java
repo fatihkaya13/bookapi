@@ -38,12 +38,14 @@ public class BookService {
     // for the duration, so lazy-loaded fields are accessible within this method.
     @Transactional
     public BookResponse create(BookRequest request) {
+        validateRating(request.getRating());
         Book book = toEntity(request);
         return toResponse(bookRepository.save(book));
     }
 
     @Transactional
     public Optional<BookResponse> update(Long id, BookRequest request) {
+        validateRating(request.getRating());
         return bookRepository.findById(id).map(book -> {
             book.setTitle(request.getTitle());
             book.setIsbn(request.getIsbn());
@@ -60,6 +62,7 @@ public class BookService {
 
     @Transactional
     public Optional<BookResponse> partialUpdate(Long id, BookPatchRequest patch) {
+        validateRating(patch.getRating());
         return bookRepository.findById(id).map(book -> {
             if (patch.getTitle() != null) book.setTitle(patch.getTitle());
             if (patch.getIsbn() != null) book.setIsbn(patch.getIsbn());
@@ -67,7 +70,6 @@ public class BookService {
             if (patch.getGenre() != null) book.setGenre(patch.getGenre());
             if (patch.getRating() != null) book.setRating(patch.getRating());
 
-            // Only update author if the patch includes an authorId key
             if (patch.getAuthorId() != null) {
                 book.setAuthor(resolveAuthor(patch.getAuthorId()));
             }
@@ -136,6 +138,17 @@ public class BookService {
                 .rating(request.getRating())
                 .author(author)
                 .build();
+    }
+
+    // Validates that rating is null or a half/whole point between 1.0 and 5.0.
+    // Allowed: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5
+    // Rejected: 4.7, 0.5, 6, etc.
+    private void validateRating(Double rating) {
+        if (rating == null) return;
+        if (rating < 1.0 || rating > 5.0 || rating % 0.5 != 0) {
+            throw new IllegalArgumentException(
+                    "Rating must be between 1.0 and 5.0 in 0.5 increments (e.g., 1, 1.5, 2, ... 5). Got: " + rating);
+        }
     }
 
     // Looks up an Author by id, returns null if id is null.
