@@ -38,14 +38,14 @@ public class BookService {
     // for the duration, so lazy-loaded fields are accessible within this method.
     @Transactional
     public BookResponse create(BookRequest request) {
-        validateRating(request.getRating());
+        if (request.getRating() != null) validateRating(request.getRating());
         Book book = toEntity(request);
         return toResponse(bookRepository.save(book));
     }
 
     @Transactional
     public Optional<BookResponse> update(Long id, BookRequest request) {
-        validateRating(request.getRating());
+        if (request.getRating() != null) validateRating(request.getRating());
         return bookRepository.findById(id).map(book -> {
             book.setTitle(request.getTitle());
             book.setIsbn(request.getIsbn());
@@ -62,7 +62,7 @@ public class BookService {
 
     @Transactional
     public Optional<BookResponse> partialUpdate(Long id, BookPatchRequest patch) {
-        validateRating(patch.getRating());
+        if (patch.getRating() != null) validateRating(patch.getRating());
         return bookRepository.findById(id).map(book -> {
             if (patch.getTitle() != null) book.setTitle(patch.getTitle());
             if (patch.getIsbn() != null) book.setIsbn(patch.getIsbn());
@@ -144,7 +144,6 @@ public class BookService {
     // Allowed: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5
     // Rejected: 4.7, 0.5, 6, etc.
     private void validateRating(Double rating) {
-        if (rating == null) return;
         if (rating < 1.0 || rating > 5.0 || rating % 0.5 != 0) {
             throw new IllegalArgumentException(
                     "Rating must be between 1.0 and 5.0 in 0.5 increments (e.g., 1, 1.5, 2, ... 5). Got: " + rating);
