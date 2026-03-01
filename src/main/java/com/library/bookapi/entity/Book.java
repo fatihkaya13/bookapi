@@ -3,7 +3,9 @@ package com.library.bookapi.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -58,7 +60,29 @@ public class Book {
     @Builder.Default
     private Set<Category> categories = new HashSet<>();
 
-    // ─── Convenience helpers (keep both sides in sync) ────────────────────────
+    // ─── INVERSE SIDE of Book→Review (same pattern as Author→Book) ──────────
+    //
+    // cascade = ALL → saving/deleting a book cascades to its reviews
+    // orphanRemoval = true → removing a review from this list deletes it from DB
+    //
+    // List is fine here (not Set) because OneToMany doesn't suffer from the
+    // bag-semantics problem — only ManyToMany does.
+    //
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<Review> reviews = new ArrayList<>();
+
+    public void addReview(Review review) {
+        reviews.add(review);
+        review.setBook(this);
+    }
+
+    public void removeReview(Review review) {
+        reviews.remove(review);
+        review.setBook(null);
+    }
+
+    // ─── Category helpers (keep both sides in sync) ──────────────────────────
     public void addCategory(Category category) {
         categories.add(category);
         category.getBooks().add(this);   // keep inverse side in sync (in-memory)

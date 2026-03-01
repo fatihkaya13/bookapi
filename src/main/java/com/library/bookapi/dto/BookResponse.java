@@ -18,7 +18,11 @@ public class BookResponse {
     private Long authorId;
     private String authorName;
 
-    // Category names only — no List<CategoryResponse> (that would nest BookResponse again)
-    // Flat list of strings is the simplest safe representation.
+    // Category names only — flat to avoid circular nesting
     private List<String> categoryNames;
+
+    // Review summary — computed via streams in service layer
+    // We don't embed full ReviewResponse here; just aggregate stats.
+    private Integer reviewCount;
+    private Double averageRating;
 }
