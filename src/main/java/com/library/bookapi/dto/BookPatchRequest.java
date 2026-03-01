@@ -8,5 +8,6 @@ public class BookPatchRequest {
     private String isbn;
     private Integer publishedYear;
     private String genre;
+    private Double rating;
     private Long authorId;   // nullable — only sent when patching the author
 }

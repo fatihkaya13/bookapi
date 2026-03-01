@@ -26,6 +26,10 @@ public class Book {
     private Integer publishedYear;
     private String genre;
 
+    // Rating 1.0 to 5.0 (half-point increments: 1, 1.5, 2, ... 4.5, 5)
+    @Column(nullable = true)
+    private Double rating;
+
     // ─── OWNING SIDE of the OneToMany/ManyToOne relationship ────────────────
     //
     @ManyToOne(fetch = FetchType.LAZY)
