@@ -61,35 +61,35 @@ public class DataInitializer implements CommandLineRunner {
         // ── 3. Save books with categories ─────────────────────────────────────
         Book cleanCode = Book.builder()
                 .title("Clean Code").isbn("9780132350884")
-                .publishedYear(2008).genre("Programming").rating(4.5).author(martin).build();
+                .publishedYear(2008).rating(4.5).author(martin).build();
         cleanCode.addCategory(programming);
         cleanCode.addCategory(bestPractices);
         cleanCode = bookRepository.save(cleanCode);
 
         Book pragmatic = Book.builder()
                 .title("The Pragmatic Programmer").isbn("9780135957059")
-                .publishedYear(2019).genre("Programming").rating(5.0).author(hunt).build();
+                .publishedYear(2019).rating(5.0).author(hunt).build();
         pragmatic.addCategory(programming);
         pragmatic.addCategory(bestPractices);
         pragmatic = bookRepository.save(pragmatic);
 
         Book designPatternsBook = Book.builder()
                 .title("Design Patterns").isbn("9780201633610")
-                .publishedYear(1994).genre("Software Engineering").rating(4.0).author(gamma).build();
+                .publishedYear(1994).rating(4.0).author(gamma).build();
         designPatternsBook.addCategory(softwareEngineering);
         designPatternsBook.addCategory(designPatterns);
         designPatternsBook = bookRepository.save(designPatternsBook);
 
         Book effectiveJava = Book.builder()
                 .title("Effective Java").isbn("9780134685991")
-                .publishedYear(2018).genre("Programming").rating(4.5).author(bloch).build();
+                .publishedYear(2018).rating(4.5).author(bloch).build();
         effectiveJava.addCategory(programming);
         effectiveJava.addCategory(bestPractices);
         effectiveJava = bookRepository.save(effectiveJava);
 
         Book refactoring = Book.builder()
                 .title("Refactoring").isbn("9780134757599")
-                .publishedYear(2018).genre("Software Engineering").rating(3.5).author(fowler).build();
+                .publishedYear(2018).rating(3.5).author(fowler).build();
         refactoring.addCategory(softwareEngineering);
         refactoring.addCategory(bestPractices);
         refactoring = bookRepository.save(refactoring);
@@ -97,7 +97,7 @@ public class DataInitializer implements CommandLineRunner {
         // Clean Architecture — intentionally left with NO reviews (for /books/no-reviews)
         Book cleanArch = Book.builder()
                 .title("Clean Architecture").isbn("9780134494166")
-                .publishedYear(2017).genre("Software Engineering").rating(4.0).author(martin).build();
+                .publishedYear(2017).rating(4.0).author(martin).build();
         cleanArch.addCategory(softwareEngineering);
         cleanArch.addCategory(designPatterns);
         bookRepository.save(cleanArch);

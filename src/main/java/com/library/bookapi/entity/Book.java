@@ -24,7 +24,6 @@ public class Book {
     private String title;
     private String isbn;
     private Integer publishedYear;
-    private String genre;
 
     // Rating 1.0 to 5.0 (half-point increments: 1, 1.5, 2, ... 4.5, 5)
     @Column(nullable = true)

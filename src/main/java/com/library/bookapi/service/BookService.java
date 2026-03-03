@@ -3,19 +3,23 @@ package com.library.bookapi.service;
 import com.library.bookapi.dto.BookPatchRequest;
 import com.library.bookapi.dto.BookRequest;
 import com.library.bookapi.dto.BookResponse;
+import com.library.bookapi.dto.PageResponse;
 import com.library.bookapi.entity.Author;
 import com.library.bookapi.entity.Book;
+import com.library.bookapi.entity.Category;
 import com.library.bookapi.repository.AuthorRepository;
 import com.library.bookapi.repository.BookRepository;
+import com.library.bookapi.repository.CategoryRepository;
 import com.library.bookapi.validation.BookValidationContext;
 import com.library.bookapi.validation.BookValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.OptionalDouble;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +27,7 @@ public class BookService {
 
     private final BookRepository bookRepository;
     private final AuthorRepository authorRepository;
+    private final CategoryRepository categoryRepository;
 
     // ─── Chain of Responsibility ─────────────────────────────────────────────
     //
@@ -32,10 +37,22 @@ public class BookService {
     //
     private final List<BookValidator> validators;
 
-    public List<BookResponse> getAll() {
-        return bookRepository.findAll().stream()
-                .map(this::toResponse)
-                .toList();
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("title", "publishedYear");
+
+    public PageResponse<BookResponse> getAll(String sortBy, String sortDirection, int page, int size) {
+        if (!ALLOWED_SORT_FIELDS.contains(sortBy)) {
+            throw new IllegalArgumentException("Invalid sortBy value: " + sortBy + ". Allowed: title, publishedYear");
+        }
+        Sort.Direction direction = sortDirection.equalsIgnoreCase("desc")
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        var bookPage = bookRepository.findAll(PageRequest.of(page, size, Sort.by(direction, sortBy)));
+        return new PageResponse<>(
+                bookPage.getContent().stream().map(this::toResponse).toList(),
+                bookPage.getNumber(),
+                bookPage.getSize(),
+                bookPage.getTotalElements(),
+                bookPage.getTotalPages()
+        );
     }
 
     public Optional<BookResponse> getById(Long id) {
@@ -56,11 +73,13 @@ public class BookService {
             book.setTitle(request.getTitle());
             book.setIsbn(request.getIsbn());
             book.setPublishedYear(request.getPublishedYear());
-            book.setGenre(request.getGenre());
             book.setRating(request.getRating());
 
             Author author = resolveAuthor(request.getAuthorId());
             book.setAuthor(author);
+
+            new HashSet<>(book.getCategories()).forEach(book::removeCategory);
+            resolveCategories(request.getCategoryIds()).forEach(book::addCategory);
 
             return toResponse(bookRepository.save(book));
         });
@@ -73,7 +92,6 @@ public class BookService {
             if (patch.getTitle() != null) book.setTitle(patch.getTitle());
             if (patch.getIsbn() != null) book.setIsbn(patch.getIsbn());
             if (patch.getPublishedYear() != null) book.setPublishedYear(patch.getPublishedYear());
-            if (patch.getGenre() != null) book.setGenre(patch.getGenre());
             if (patch.getRating() != null) book.setRating(patch.getRating());
 
             if (patch.getAuthorId() != null) {
@@ -112,7 +130,6 @@ public class BookService {
                 .title(request.getTitle())
                 .isbn(request.getIsbn())
                 .publishedYear(request.getPublishedYear())
-                .genre(request.getGenre())
                 .rating(request.getRating())
                 .build();
     }
@@ -122,7 +139,6 @@ public class BookService {
                 .title(patch.getTitle())
                 .isbn(patch.getIsbn())
                 .publishedYear(patch.getPublishedYear())
-                .genre(patch.getGenre())
                 .rating(patch.getRating())
                 .build();
     }
@@ -149,7 +165,6 @@ public class BookService {
                 .title(book.getTitle())
                 .isbn(book.getIsbn())
                 .publishedYear(book.getPublishedYear())
-                .genre(book.getGenre())
                 .rating(book.getRating())
                 .authorId(author != null ? author.getId() : null)
                 .authorName(author != null
@@ -163,19 +178,31 @@ public class BookService {
 
     private Book toEntity(BookRequest request) {
         Author author = resolveAuthor(request.getAuthorId());
-        return Book.builder()
+        Book book = Book.builder()
                 .title(request.getTitle())
                 .isbn(request.getIsbn())
                 .publishedYear(request.getPublishedYear())
-                .genre(request.getGenre())
                 .rating(request.getRating())
                 .author(author)
                 .build();
+        resolveCategories(request.getCategoryIds()).forEach(book::addCategory);
+        return book;
     }
 
     private Author resolveAuthor(Long authorId) {
         return Optional.ofNullable(authorId)
                 .flatMap(authorRepository::findById)
                 .orElse(null);
+    }
+
+    private List<Category> resolveCategories(List<Long> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) return Collections.emptyList();
+        List<Category> found = categoryRepository.findAllById(categoryIds);
+        if (found.size() != categoryIds.size()) {
+            List<Long> foundIds = found.stream().map(Category::getId).toList();
+            List<Long> missing = categoryIds.stream().filter(id -> !foundIds.contains(id)).toList();
+            throw new IllegalArgumentException("Category IDs not found: " + missing);
+        }
+        return found;
     }
 }

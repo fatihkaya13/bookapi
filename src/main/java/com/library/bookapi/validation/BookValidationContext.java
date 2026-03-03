@@ -13,6 +13,5 @@ public class BookValidationContext {
     private String title;
     private String isbn;
     private Integer publishedYear;
-    private String genre;
     private Double rating;
 }

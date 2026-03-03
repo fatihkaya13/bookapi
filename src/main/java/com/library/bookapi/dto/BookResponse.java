@@ -12,7 +12,6 @@ public class BookResponse {
     private String title;
     private String isbn;
     private Integer publishedYear;
-    private String genre;
     private Double rating;
 
     // Flat author info — no back-reference to avoid circular JSON
