@@ -7,6 +7,7 @@ import com.library.bookapi.dto.PageResponse;
 import com.library.bookapi.entity.Author;
 import com.library.bookapi.entity.Book;
 import com.library.bookapi.entity.Category;
+import com.library.bookapi.entity.Review;
 import com.library.bookapi.repository.AuthorRepository;
 import com.library.bookapi.repository.BookRepository;
 import com.library.bookapi.repository.CategoryRepository;
@@ -149,16 +150,19 @@ public class BookService {
         Author author = book.getAuthor();
 
         List<String> categoryNames = book.getCategories().stream()
-                .map(cat -> cat.getName())
+                .map(Category::getName)
                 .sorted()
                 .toList();
 
         int reviewCount = book.getReviews().size();
 
         OptionalDouble avg = book.getReviews().stream()
-                .mapToInt(r -> r.getRating())
+                .mapToInt(Review::getRating)
                 .average();
-        Double avgRating = avg.isPresent() ? avg.getAsDouble() : null;
+
+        Double avgRating = avg.isPresent()
+                ? Math.round(avg.getAsDouble() * 10.0) / 10.0
+                : null;
 
         return BookResponse.builder()
                 .id(book.getId())
